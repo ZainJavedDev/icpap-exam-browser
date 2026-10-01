@@ -77,12 +77,14 @@ jobs:
         run: nuget restore SafeExamBrowser.sln
 
       # x64 first: the x86 pass also builds the setup bundle, which packs both MSIs.
+      # Not /m: the installer's pre-build step harvests the app's output folders, so the app must finish first.
+      # SignOutput=false until we have a code-signing certificate; upstream signs with ETH's.
       - name: Build x64
-        run: msbuild SafeExamBrowser.sln /m /verbosity:minimal /p:Configuration=Release /p:Platform=x64 /p:LangVersion=latest "/p:WixTargetsPath=$env:WIX_TARGETS"
+        run: msbuild SafeExamBrowser.sln /verbosity:minimal /p:Configuration=Release /p:Platform=x64 /p:LangVersion=latest /p:SignOutput=false "/p:WixTargetsPath=$env:WIX_TARGETS"
         shell: pwsh
 
       - name: Build x86 and setup bundle
-        run: msbuild SafeExamBrowser.sln /m /verbosity:minimal /p:Configuration=Release /p:Platform=x86 /p:LangVersion=latest "/p:WixTargetsPath=$env:WIX_TARGETS"
+        run: msbuild SafeExamBrowser.sln /verbosity:minimal /p:Configuration=Release /p:Platform=x86 /p:LangVersion=latest /p:SignOutput=false "/p:WixTargetsPath=$env:WIX_TARGETS"
         shell: pwsh
 
       - name: Collect installers
