@@ -5,6 +5,7 @@ A modified version of [Safe Exam Browser](https://github.com/SafeExamBrowser/seb
 Changes from upstream, all on the `icpap` branch:
 
 - **Built-in settings** (`SafeExamBrowser.Configuration/ConfigurationData/DataValues.cs`): starts at the exam system's login page, only allows main-page navigation to the exam system's domain and `meet.jit.si`, quits at `/seb/quit`, and sends the `X-SafeExamBrowser-ConfigKeyHash` header with a fixed Config Key. No `.seb` file is needed; a `.seb` file opened in it is applied on top of these settings.
+- **Plain-http test servers** (`SafeExamBrowser.Browser/BrowserApplication.cs`): when the start page is `http://`, its origin is treated as secure so the camera works against a development server on the local network. Production builds use `https://` and are unaffected.
 - **Branding**: ICPAP seal and the name "ICPAP Exam Browser" on icons, splash, About window, English messages and the installer. Regenerate the images with `python3 Branding/make-branding.py` after replacing `Branding/icpap-logo.png`.
 - **Build**: `.github/workflows/icpap-build.yml` builds the installers on GitHub Actions. Run it from the Actions tab with the exam address; it reads the Config Key from the `ICPAP_CONFIG_KEY` repository secret. The exam system's Safe Exam Browser settings page needs the same key.
 

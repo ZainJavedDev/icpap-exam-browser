@@ -352,6 +352,12 @@ namespace SafeExamBrowser.Browser
 			cefSettings.CefCommandLineArgs.Add("touch-events", "enabled");
 			cefSettings.CefCommandLineArgs.Add("use-fake-ui-for-media-stream");
 
+			// ICPAP: the camera needs a secure context, which a plain-http test server on the local network is not.
+			if (Uri.TryCreate(settings.StartUrl, UriKind.Absolute, out var startUrl) && startUrl.Scheme == Uri.UriSchemeHttp)
+			{
+				cefSettings.CefCommandLineArgs.Add("unsafely-treat-insecure-origin-as-secure", startUrl.GetLeftPart(UriPartial.Authority));
+			}
+
 			InitializeProxySettings(cefSettings);
 
 			logger.Debug($"Accept Language: {cefSettings.AcceptLanguageList}");
