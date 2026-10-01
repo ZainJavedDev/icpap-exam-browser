@@ -1,0 +1,90 @@
+name: Build ICPAP Exam Browser
+
+on:
+  workflow_dispatch:
+    inputs:
+      exam_url:
+        description: Address of the exam system, without a trailing slash, e.g. https://exam.icpap.org
+        required: true
+      allow_virtual_machines:
+        description: Allow running in a virtual machine. For test builds only.
+        type: boolean
+        default: false
+
+jobs:
+  build:
+    # WiX 3, which the installer projects need, is preinstalled on windows-2022 but not windows-2025.
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: microsoft/setup-msbuild@v2
+
+      - uses: nuget/setup-nuget@v2
+
+      - name: Bake in the exam address, Config Key and version
+        shell: pwsh
+        env:
+          EXAM_URL: ${{ inputs.exam_url }}
+          CONFIG_KEY: ${{ secrets.ICPAP_CONFIG_KEY }}
+          ALLOW_VM: ${{ inputs.allow_virtual_machines }}
+        run: |
+          $url = $env:EXAM_URL.Trim().TrimEnd('/')
+          if (-not [Uri]::IsWellFormedUriString($url, 'Absolute') -or $url -notmatch '^https?://') { throw "Not an http(s) address: $url" }
+          if ($env:CONFIG_KEY -notmatch '^[0-9a-f]{64}$') { throw 'The ICPAP_CONFIG_KEY secret must be 64 lowercase hexadecimal characters.' }
+
+          $file = 'SafeExamBrowser.Configuration/ConfigurationData/DataValues.cs'
+          $code = Get-Content $file -Raw
+          $replacements = @{
+            'ICPAP_EXAM_URL = ".*?";' = "ICPAP_EXAM_URL = `"$url`";"
+            'ICPAP_CONFIGURATION_KEY = ".*?";' = "ICPAP_CONFIGURATION_KEY = `"$env:CONFIG_KEY`";"
+            'ICPAP_ALLOW_VIRTUAL_MACHINES = \w+;' = "ICPAP_ALLOW_VIRTUAL_MACHINES = $($env:ALLOW_VM.ToLower());"
+          }
+          foreach ($pattern in $replacements.Keys) {
+            if ($code -notmatch $pattern) { throw "Pattern not found in ${file}: $pattern" }
+            $code = $code -replace $pattern, $replacements[$pattern]
+          }
+          Set-Content $file $code -NoNewline -Encoding utf8BOM
+
+          $version = "3.10.2.$(1000 + [int]$env:GITHUB_RUN_NUMBER)"
+          Get-ChildItem -Recurse -Filter AssemblyInfo.cs | ForEach-Object {
+            (Get-Content $_.FullName -Raw) -replace '"1\.0\.0\.0"', "`"$version`"" | Set-Content $_.FullName -NoNewline -Encoding utf8BOM
+          }
+          "VERSION=$version" >> $env:GITHUB_ENV
+          Write-Host "Exam address: $url, virtual machines allowed: $env:ALLOW_VM, version: $version"
+
+      - name: Locate WiX Toolset 3
+        shell: pwsh
+        run: |
+          if (-not $env:WIX) {
+            choco install wixtoolset --version 3.14.1 -y --no-progress
+            $env:WIX = [Environment]::GetEnvironmentVariable('WIX', 'Machine')
+          }
+          $targets = Join-Path $env:WIX 'bin\wix.targets'
+          if (-not (Test-Path $targets)) { throw "wix.targets not found under $env:WIX" }
+          "WIX_TARGETS=$targets" >> $env:GITHUB_ENV
+
+      - name: Restore packages
+        run: nuget restore SafeExamBrowser.sln
+
+      # x64 first: the x86 pass also builds the setup bundle, which packs both MSIs.
+      - name: Build x64
+        run: msbuild SafeExamBrowser.sln /m /verbosity:minimal /p:Configuration=Release /p:Platform=x64 /p:LangVersion=latest "/p:WixTargetsPath=$env:WIX_TARGETS"
+        shell: pwsh
+
+      - name: Build x86 and setup bundle
+        run: msbuild SafeExamBrowser.sln /m /verbosity:minimal /p:Configuration=Release /p:Platform=x86 /p:LangVersion=latest "/p:WixTargetsPath=$env:WIX_TARGETS"
+        shell: pwsh
+
+      - name: Collect installers
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory dist | Out-Null
+          Copy-Item SetupBundle/bin/x86/Release/SetupBundle.exe "dist/ICPAP-Exam-Browser-$env:VERSION-Setup.exe"
+          Copy-Item Setup/bin/x64/Release/Setup.msi "dist/ICPAP-Exam-Browser-$env:VERSION-x64.msi"
+          Copy-Item Setup/bin/x86/Release/Setup.msi "dist/ICPAP-Exam-Browser-$env:VERSION-x86.msi"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ICPAP-Exam-Browser-${{ env.VERSION }}
+          path: dist/

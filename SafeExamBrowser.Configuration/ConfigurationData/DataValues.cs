@@ -15,6 +15,7 @@ using SafeExamBrowser.Configuration.Contracts;
 using SafeExamBrowser.Settings;
 using SafeExamBrowser.Settings.Applications;
 using SafeExamBrowser.Settings.Browser;
+using SafeExamBrowser.Settings.Browser.Filter;
 using SafeExamBrowser.Settings.Browser.Proxy;
 using SafeExamBrowser.Settings.Logging;
 using SafeExamBrowser.Settings.Proctoring;
@@ -27,6 +28,11 @@ namespace SafeExamBrowser.Configuration.ConfigurationData
 	internal class DataValues
 	{
 		private const string DEFAULT_CONFIGURATION_NAME = "SebClientSettings.seb";
+
+		// ICPAP: the build workflow (.github/workflows/icpap-build.yml) replaces these three lines.
+		private const string ICPAP_EXAM_URL = "http://localhost:8000";
+		private const string ICPAP_CONFIGURATION_KEY = "";
+		private const bool ICPAP_ALLOW_VIRTUAL_MACHINES = false;
 		private AppConfig appConfig;
 
 		internal string GetAppDataFilePath()
@@ -195,11 +201,16 @@ namespace SafeExamBrowser.Configuration.ConfigurationData
 			settings.Browser.MainWindow.UrlPolicy = UrlPolicy.Never;
 			settings.Browser.PopupPolicy = PopupPolicy.Allow;
 			settings.Browser.Proxy.Policy = ProxyPolicy.System;
+			settings.Browser.ConfigurationKey = ICPAP_CONFIGURATION_KEY;
+			settings.Browser.Filter.ProcessMainRequests = true;
+			settings.Browser.Filter.Rules.Add(new FilterRuleSettings { Expression = new Uri(ICPAP_EXAM_URL).Host, Result = FilterResult.Allow, Type = FilterRuleType.Simplified });
+			settings.Browser.Filter.Rules.Add(new FilterRuleSettings { Expression = "meet.jit.si", Result = FilterResult.Allow, Type = FilterRuleType.Simplified });
+			settings.Browser.QuitUrl = $"{ICPAP_EXAM_URL}/seb/quit";
 			settings.Browser.ResetOnQuitUrl = false;
 			settings.Browser.SendBrowserExamKey = false;
-			settings.Browser.SendConfigurationKey = false;
+			settings.Browser.SendConfigurationKey = true;
 			settings.Browser.ShowFileSystemElementPath = true;
-			settings.Browser.StartUrl = "https://www.safeexambrowser.org/start";
+			settings.Browser.StartUrl = $"{ICPAP_EXAM_URL}/login";
 			settings.Browser.UseCustomUserAgent = false;
 			settings.Browser.UseIsolatedClipboard = true;
 			settings.Browser.UseQueryParameter = false;
@@ -266,7 +277,7 @@ namespace SafeExamBrowser.Configuration.ConfigurationData
 			settings.Security.KioskMode = KioskMode.CreateNewDesktop;
 			settings.Security.VerifyCursorConfiguration = true;
 			settings.Security.VerifySessionIntegrity = true;
-			settings.Security.VirtualMachinePolicy = VirtualMachinePolicy.Deny;
+			settings.Security.VirtualMachinePolicy = ICPAP_ALLOW_VIRTUAL_MACHINES ? VirtualMachinePolicy.Allow : VirtualMachinePolicy.Deny;
 
 			settings.Server.Invigilation.ForceRaiseHandMessage = false;
 			settings.Server.Invigilation.ShowRaiseHandNotification = true;
