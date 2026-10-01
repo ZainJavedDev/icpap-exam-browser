@@ -9,6 +9,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using System.Timers;
 using SafeExamBrowser.Logging.Contracts;
@@ -24,6 +25,8 @@ namespace SafeExamBrowser.Monitoring.Applications
 		private readonly IList<BlacklistApplication> blacklist;
 		private readonly ILogger logger;
 		private readonly INativeMethods nativeMethods;
+		private readonly string ownDirectory;
+		private readonly string ownSignature;
 		private readonly IProcessFactory processFactory;
 		private readonly Timer timer;
 		private readonly IList<WhitelistApplication> whitelist;
@@ -46,6 +49,8 @@ namespace SafeExamBrowser.Monitoring.Applications
 			this.processFactory = processFactory;
 			this.timer = new Timer(interval_ms);
 			this.whitelist = new List<WhitelistApplication>();
+
+			LoadOwnExecutableInfo(out ownDirectory, out ownSignature);
 		}
 
 		public InitializationResult Initialize(ApplicationSettings settings)
@@ -223,11 +228,36 @@ namespace SafeExamBrowser.Monitoring.Applications
 			isRuntime &= process.OriginalName == "SafeExamBrowser.exe";
 
 #if !DEBUG
-			isClient &= process.Signature == "ecac9df025f5d208f6190fc4d6f9d329576598c7";
-			isRuntime &= process.Signature == "ecac9df025f5d208f6190fc4d6f9d329576598c7";
+			// Upstream compares against ETH's certificate thumbprint. Our builds are unsigned or signed with our own
+			// certificate, so instead require the same folder and the same signature (or none) as this executable.
+			var sameDirectory = string.Equals(System.IO.Path.GetDirectoryName(process.Path ?? ""), ownDirectory, StringComparison.OrdinalIgnoreCase);
+			var sameSignature = process.Signature == ownSignature;
+
+			isClient &= sameDirectory && sameSignature;
+			isRuntime &= sameDirectory && sameSignature;
 #endif
 
 			return isClient || isRuntime;
+		}
+
+		private void LoadOwnExecutableInfo(out string directory, out string signature)
+		{
+			var path = System.Diagnostics.Process.GetCurrentProcess().MainModule.FileName;
+
+			directory = System.IO.Path.GetDirectoryName(path);
+			signature = default;
+
+			try
+			{
+				using (var certificate = X509Certificate.CreateFromSignedFile(path))
+				{
+					signature = certificate.GetCertHashString()?.ToLower();
+				}
+			}
+			catch
+			{
+				logger.Warn("This executable is not code-signed, the application monitor will identify its own processes by folder only.");
+			}
 		}
 
 		private void Close(Window window)
