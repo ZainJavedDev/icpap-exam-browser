@@ -70,6 +70,8 @@ namespace SafeExamBrowser.Runtime.Operations.Bootstrap
 
 		private bool VerifyRuntimeIntegrity()
 		{
+			// ETH's integrity module (seb_x64.dll / seb_x86.dll) is closed source and not part of our build, so the check
+			// cannot run. Only abort if the module is present and reports that the runtime has been tampered with.
 			if (module.TryVerifyRuntimeIntegrity(out var isValid))
 			{
 				if (isValid)
@@ -83,6 +85,7 @@ namespace SafeExamBrowser.Runtime.Operations.Bootstrap
 			}
 			else
 			{
+				isValid = true;
 				logger.Warn("Failed to verify runtime integrity!");
 			}
 

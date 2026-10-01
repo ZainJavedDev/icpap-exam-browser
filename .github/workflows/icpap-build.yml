@@ -95,7 +95,22 @@ jobs:
           Copy-Item Setup/bin/x64/Release/Setup.msi "dist/ICPAP-Exam-Browser-$env:VERSION-x64.msi"
           Copy-Item Setup/bin/x86/Release/Setup.msi "dist/ICPAP-Exam-Browser-$env:VERSION-x86.msi"
 
+      # One artifact per installer, so a tester on a slow connection can download only the one they need.
+      # Compression is off: the installers are already compressed.
       - uses: actions/upload-artifact@v4
         with:
-          name: ICPAP-Exam-Browser-${{ env.VERSION }}
-          path: dist/
+          name: ICPAP-Exam-Browser-${{ env.VERSION }}-x64.msi
+          path: dist/ICPAP-Exam-Browser-${{ env.VERSION }}-x64.msi
+          compression-level: 0
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ICPAP-Exam-Browser-${{ env.VERSION }}-x86.msi
+          path: dist/ICPAP-Exam-Browser-${{ env.VERSION }}-x86.msi
+          compression-level: 0
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ICPAP-Exam-Browser-${{ env.VERSION }}-Setup.exe
+          path: dist/ICPAP-Exam-Browser-${{ env.VERSION }}-Setup.exe
+          compression-level: 0
