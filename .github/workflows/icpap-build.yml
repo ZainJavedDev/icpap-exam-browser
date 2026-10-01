@@ -60,8 +60,17 @@ jobs:
             choco install wixtoolset --version 3.14.1 -y --no-progress
             $env:WIX = [Environment]::GetEnvironmentVariable('WIX', 'Machine')
           }
-          $targets = Join-Path $env:WIX 'bin\wix.targets'
-          if (-not (Test-Path $targets)) { throw "wix.targets not found under $env:WIX" }
+          $candidates = @(
+            "${env:ProgramFiles(x86)}\MSBuild\Microsoft\WiX\v3.x\Wix.targets",
+            (Join-Path $env:WIX 'bin\wix.targets'),
+            (Join-Path $env:WIX 'SDK\wix.targets')
+          )
+          $targets = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+          if (-not $targets) {
+            Get-ChildItem $env:WIX, "${env:ProgramFiles(x86)}\MSBuild" -Recurse -Filter *.targets -ErrorAction SilentlyContinue | ForEach-Object FullName
+            throw "Wix.targets not found"
+          }
+          Write-Host "Using $targets"
           "WIX_TARGETS=$targets" >> $env:GITHUB_ENV
 
       - name: Restore packages
