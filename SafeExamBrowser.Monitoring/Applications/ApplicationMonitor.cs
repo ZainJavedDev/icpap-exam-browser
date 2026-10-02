@@ -230,7 +230,7 @@ namespace SafeExamBrowser.Monitoring.Applications
 #if !DEBUG
 			// Upstream compares against ETH's certificate thumbprint. Our builds are unsigned or signed with our own
 			// certificate, so instead require the same folder and the same signature (or none) as this executable.
-			var sameDirectory = string.Equals(System.IO.Path.GetDirectoryName(process.Path ?? ""), ownDirectory, StringComparison.OrdinalIgnoreCase);
+			var sameDirectory = string.Equals(global::System.IO.Path.GetDirectoryName(process.Path ?? ""), ownDirectory, StringComparison.OrdinalIgnoreCase);
 			var sameSignature = process.Signature == ownSignature;
 
 			isClient &= sameDirectory && sameSignature;
@@ -242,9 +242,9 @@ namespace SafeExamBrowser.Monitoring.Applications
 
 		private void LoadOwnExecutableInfo(out string directory, out string signature)
 		{
-			var path = System.Diagnostics.Process.GetCurrentProcess().MainModule.FileName;
+			var path = global::System.Diagnostics.Process.GetCurrentProcess().MainModule.FileName;
 
-			directory = System.IO.Path.GetDirectoryName(path);
+			directory = global::System.IO.Path.GetDirectoryName(path);
 			signature = default;
 
 			try
